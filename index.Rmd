@@ -1,0 +1,88 @@
+---
+title: "Machine Learning Assignment"
+author: "Julian Oehling"
+date: "14 Februar 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The purpose of this document is to develop a machine learning model which predicts how well a fitness excersise was performed by participants based on the data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+
+First, the data is read in:
+```{r reading data}
+library(caret)
+train <- read.csv(file = "E:/Coursera/MachineLearning/pml-training.csv", header = TRUE, na.strings=c(""," ","NA"))
+quiz <- read.csv(file = "E:/Coursera/MachineLearning/pml-testing.csv", header = TRUE, na.strings=c(""," ","NA"))
+```
+
+## Data cleaning
+
+A first inspection shows, that many columns contain mostly NAs. They are removed in the next step.
+
+```{r remving NAs}
+train <- train[,colSums(!is.na(train)) > (nrow(train)*0.9)]
+```
+
+This reduces the number of columns from 160 to 60. A few of them contain information which is not helpful, for example a unique id number. They are excluded as well.
+
+```{r removing useless information}
+train <- train[,-1]
+train <- train[,-(2:4)]
+```
+
+## Data splitting
+
+To estimate the out of sample error when the model has been built, 10% of the data are removed from the training data set and put into a test dataset.
+
+```{r splitting}
+library(caret)
+trainIndex <- createDataPartition(train$classe, p = .9, 
+                                  list = FALSE, 
+                                  times = 1)
+test <- train[-trainIndex,]
+train <- train[trainIndex,]
+```
+
+
+## Model building
+
+Now, a model can be built in order to predict the class. In order to create a class predictor a random forest approach is chosen. 10-fold cross validation is used and principal component analysis for the 55 variables.
+
+```{r ML, warning=FALSE, echo=FALSE, eval=FALSE}
+ctrl <- trainControl(method = "repeatedcv", repeats = 10)
+fit <- train(classe ~., data= train, method="parRF", trControl = ctrl, preProcess = "pca")
+```
+Due to the very long calculation time (several hours!) this step was not reperfomed when finally knitting the document (see: eval=FALSE) but the result loaded below. The code is otherwise unaltered.
+
+
+## Model analysis
+
+Finally, let's have a look at the model.
+
+```{r model}
+load("E:/Coursera/MachineLearning/fit.Rdata")
+fit$results
+```
+
+
+In the last step, the out of sample error is estaimated by using the model on the previously created test data.
+
+```{r oose}
+confusionMatrix(predict(fit, newdata = test), test$classe)
+```
+
+It can be seen,that the expected out of sample error is very small.
+
+## Predictin on the quiz data
+
+As required 20 predictions are made for the week 4 quiz.
+
+```{r quiz}
+predict(fit, newdata = quiz)
+```
+
